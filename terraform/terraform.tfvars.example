@@ -1,0 +1,36 @@
+# Ejemplo de archivo de variables de Terraform
+# Copiar este archivo como terraform.tfvars y ajustar según sea necesario
+
+kubeconfig_path = "~/.kube/config"
+
+namespaces = [
+  "istio-system",
+  "istio-dev",
+  "istio-prod"
+]
+
+istio_version = "1.18.2"
+
+istio_namespace = "istio-system"
+
+enable_kiali = true
+
+kiali_namespace = "istio-system"
+
+kiali_ingress_enabled = false
+
+kiali_ingress_host = "kiali.example.com"
+
+tracing_jaeger_enabled = true
+
+prometheus_enabled = true
+
+grafana_enabled = true
+
+environment = "dev"
+
+tags = {
+  Environment = "dev"
+  ManagedBy   = "terraform"
+  Project     = "istio-deployment"
+}

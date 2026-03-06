@@ -1,0 +1,45 @@
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.*
+terraform/.tfvars
+terraform/tfplan
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local Kubernetes
+kubeconfig
+.kubeconfig
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+env/
+
+# Sensitive data
+*.pem
+*.key
+*.pfx
+*.p12
+secrets.yaml
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

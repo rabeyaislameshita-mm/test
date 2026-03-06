@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-egressgateway
+  namespace: istio-system
+  labels:
+    app: istio-egressgateway
+    release: istio
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http2
+  - port: 443
+    targetPort: 8443
+    protocol: TCP
+    name: https
+  selector:
+    app: istio-egressgateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istio-egressgateway
+  namespace: istio-system
+  labels:
+    app: istio-egressgateway
+spec:
+  strategy:
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: istio-egressgateway
+  template:
+    metadata:
+      labels:
+        app: istio-egressgateway
+    spec:
+      serviceAccountName: istio-egressgateway
+      containers:
+      - name: istio-proxy
+        image: istio/proxyv2:1.18.2
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        - containerPort: 8443
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        env:
+        - name: ISTIO_META_ROUTER_MODE
+          value: "sni-dnat"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: istio-egressgateway
+  namespace: istio-system

@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: istiod
+  namespace: istio-system
+  labels:
+    app: istiod
+    release: istio
+spec:
+  ports:
+  - port: 15010
+    protocol: TCP
+    name: dns-tls
+  - port: 15012
+    protocol: TCP
+    name: tcp-tls-webhook
+  - port: 8888
+    protocol: TCP
+    name: http-monitoring
+  selector:
+    app: istiod
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istiod
+  namespace: istio-system
+  labels:
+    app: istiod
+    version: v1
+spec:
+  strategy:
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: istiod
+  template:
+    metadata:
+      labels:
+        app: istiod
+        version: v1
+    spec:
+      serviceAccountName: istiod
+      containers:
+      - name: discovery
+        image: istio/pilot:1.18.2
+        imagePullPolicy: IfNotPresent
+        args:
+          - "discovery"
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        - containerPort: 15010
+          protocol: TCP
+        - containerPort: 15017
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 2048Mi
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: istiod
+  namespace: istio-system

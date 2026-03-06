@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-config
+  namespace: istio-system
+  labels:
+    app: istio
+data:
+  mesh-config: |
+    accessLogFile: /dev/stdout
+    accessLogFormat: '[%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+      %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% "%DURATION%" "%RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)%"
+      "%REQ(X-FORWARDED-FOR)%" "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%"
+      "%UPSTREAM_HOST%" "%UPSTREAM_CLUSTER%" "%UPSTREAM_LOCAL_ADDRESS%" "%DOWNSTREAM_LOCAL_ADDRESS%"
+      "%DOWNSTREAM_REMOTE_ADDRESS%" "%REQUESTED_SERVER_NAME%" "%ROUTE_NAME%"
+      %PROTOCOL%'
+    enablePrometheusMerge: true
+    enableTracing: true
+    outboundTrafficPolicy:
+      mode: ALLOW_ANY
+    inboundTrafficPolicy:
+      mode: ALLOW_ANY
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-security
+  namespace: istio-system
+data:
+  jwt-policy: third-party-jwt

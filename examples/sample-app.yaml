@@ -1,0 +1,195 @@
+# Ejemplo de aplicación para desplegar en Istio
+
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-dev
+  labels:
+    istio-injection: enabled
+
+---
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sample-app
+  namespace: istio-dev
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-app
+  namespace: istio-dev
+  labels:
+    app: sample-app
+    version: v1
+spec:
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  selector:
+    app: sample-app
+
+---
+# Deployment v1
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-app-v1
+  namespace: istio-dev
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sample-app
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: sample-app
+        version: v1
+    spec:
+      serviceAccountName: sample-app
+      containers:
+      - name: sample-app
+        image: hashicorp/http-echo:latest
+        args:
+        - "-text=responded from v1"
+        ports:
+        - name: http
+          containerPort: 5678
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# Deployment v2
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-app-v2
+  namespace: istio-dev
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sample-app
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: sample-app
+        version: v2
+    spec:
+      serviceAccountName: sample-app
+      containers:
+      - name: sample-app
+        image: hashicorp/http-echo:latest
+        args:
+        - "-text=responded from v2"
+        ports:
+        - name: http
+          containerPort: 5678
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+# VirtualService
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: sample-app
+  namespace: istio-dev
+spec:
+  hosts:
+  - sample-app
+  http:
+  - route:
+    - destination:
+        host: sample-app
+        subset: v1
+      weight: 50
+    - destination:
+        host: sample-app
+        subset: v2
+      weight: 50
+
+---
+# DestinationRule
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: sample-app
+  namespace: istio-dev
+spec:
+  host: sample-app
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 100
+    loadBalancer:
+      simple: ROUND_ROBIN
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 50
+        http:
+          http1MaxPendingRequests: 50
+          http2MaxRequests: 50
+  - name: v2
+    labels:
+      version: v2
+    trafficPolicy:
+      connectionPool:
+        tcp:
+          maxConnections: 50
+        http:
+          http1MaxPendingRequests: 50
+          http2MaxRequests: 50

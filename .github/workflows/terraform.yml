@@ -1,0 +1,104 @@
+name: Terraform Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'terraform/**'
+      - 'kustomize/**'
+      - '.github/workflows/terraform.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'terraform/**'
+      - 'kustomize/**'
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.5.0
+    
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive terraform/
+      continue-on-error: true
+    
+    - name: Terraform Init
+      run: cd terraform && terraform init -no-color -backend=false
+    
+    - name: Terraform Validate
+      run: cd terraform && terraform validate -no-color
+    
+    - name: Terraform Plan
+      run: cd terraform && terraform plan -no-color -out=tfplan
+      env:
+        TF_VAR_kubeconfig_path: ~/.kube/config
+      continue-on-error: true
+
+  yaml-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install yamllint
+      run: pip install yamllint
+    
+    - name: Validate YAML files
+      run: yamllint examples/ kustomize/
+    
+    - name: Setup kubectl
+      run: |
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+    
+    - name: Validate Kubernetes manifests
+      run: |
+        for file in examples/*.yaml kustomize/base/*.yaml; do
+          if [ -f "$file" ]; then
+            kubectl apply --dry-run=client -f "$file"
+          fi
+        done
+
+  kustomize-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Kustomize
+      run: |
+        curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+        sudo mv kustomize /usr/local/bin/
+    
+    - name: Validate Kustomize
+      run: |
+        kustomize build kustomize/
+        kustomize build kustomize/overlays/dev
+        kustomize build kustomize/overlays/prod
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run Tfsec
+      uses: aquasecurity/tfsec-action@v1
+      with:
+        working_directory: 'terraform'
+      continue-on-error: true
+    
+    - name: Run Checkov
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: terraform/
+        framework: terraform
+      continue-on-error: true

@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: istio-system
+
+commonLabels:
+  environment: prod
+  managed-by: kustomize
+
+commonAnnotations:
+  deployment.kubernetes.io/environment: prod
+
+resources:
+  - ../../base
+
+patchesStrategicMerge:
+  - kiali-patch.yaml
+
+replicas:
+  - name: kiali
+    count: 3
+
+patchesJson6902:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: kiali
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: 1024Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 512Mi
