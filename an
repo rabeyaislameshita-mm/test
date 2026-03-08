@@ -1,0 +1,8 @@
+helm uninstall istio-ingressgateway -n istio-system --ignore-not-found
+helm uninstall istio-egressgateway  -n istio-system --ignore-not-found
+helm uninstall istiod               -n istio-system --ignore-not-found
+helm uninstall istio-base           -n istio-system --ignore-not-found
+
+
+
+kubectl delete pods --all -n istio-system --force --grace-period=0

@@ -6,16 +6,19 @@ kubeconfig_path = "~/.kube/config"
 namespaces = [
   "istio-system",
   "istio-dev",
-  "istio-prod"
+  "istio-uat",
+  "observability"
 ]
 
-istio_version = "1.18.2"
+istio_version = "1.29.0"
 
 istio_namespace = "istio-system"
 
 enable_kiali = true
 
-kiali_namespace = "istio-system"
+kiali_namespace = "observability"
+
+observability_namespace = "observability"
 
 kiali_ingress_enabled = false
 
@@ -26,6 +29,18 @@ tracing_jaeger_enabled = true
 prometheus_enabled = true
 
 grafana_enabled = true
+
+# Splunk OpenTelemetry Collector
+# Activar y configurar con las credenciales de tu instancia Splunk
+splunk_enabled = false
+
+# Para Splunk Observability Cloud:
+# splunk_access_token = "<tu-access-token>"
+# splunk_realm        = "us0"   # us0, us1, eu0, ap0...
+
+# Para Splunk Enterprise / Splunk Cloud Platform (HEC):
+# splunk_platform_endpoint = "https://splunk-host:8088/services/collector"
+# splunk_platform_token    = "<tu-hec-token>"
 
 environment = "dev"
 

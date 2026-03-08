@@ -5,7 +5,7 @@ resource "kubernetes_namespace" "istio_namespaces" {
     name = each.value
     labels = {
       name                                           = each.value
-      "istio-injection"                              = each.value != "istio-system" ? "enabled" : "disabled"
+      "istio-injection"                              = each.value == "observability" ? "disabled" : "enabled"
       "app.kubernetes.io/managed-by"                = "terraform"
       "app.kubernetes.io/part-of"                   = "istio"
     }

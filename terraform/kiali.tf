@@ -4,7 +4,7 @@ resource "helm_release" "kiali" {
   repository       = "https://kiali.org/helm-charts"
   chart            = "kiali-server"
   namespace        = var.kiali_namespace
-  version          = "1.71.0"
+  version          = "2.22.0"
   create_namespace = false
   wait             = true
   timeout          = 600
@@ -16,16 +16,19 @@ resource "helm_release" "kiali" {
       }
       external_services = {
         prometheus = {
-          url = "http://prometheus:9090"
+          url = "http://prometheus-kube-prometheus-prometheus.observability.svc.cluster.local:9090"
         }
         tracing = {
-          enabled         = var.tracing_jaeger_enabled
-          namespaceSelector = true
-          url             = "http://jaeger:16686"
+          enabled        = var.tracing_jaeger_enabled
+          provider       = "jaeger"
+          in_cluster_url = "http://jaeger.observability.svc.cluster.local:16686"
+          url            = "http://jaeger.observability.svc.cluster.local:16686"
+          use_grpc       = false
         }
         grafana = {
-          enabled = var.grafana_enabled
-          url     = "http://grafana:3000"
+          enabled  = var.grafana_enabled
+          url      = "http://prometheus-grafana.observability.svc.cluster.local:80"
+          in_cluster_url = "http://prometheus-grafana.observability.svc.cluster.local:80"
         }
         custom_dashboards = {
           enabled = true
@@ -48,19 +51,19 @@ resource "helm_release" "kiali" {
         type = "ClusterIP"
         port = 20001
       }
-      ingress = var.kiali_ingress_enabled ? {
-        enabled   = true
-        className = "nginx"
-        hosts = [
+      ingress = {
+        enabled   = var.kiali_ingress_enabled
+        className = var.kiali_ingress_enabled ? "nginx" : ""
+        hosts = var.kiali_ingress_enabled ? [
           {
             name = var.kiali_ingress_host
             tls = {
-              enabled = true
+              enabled    = true
               secretName = "kiali-tls"
             }
           }
-        ]
-      } : {}
+        ] : []
+      }
       tag = var.istio_version
     })
   ]
@@ -75,8 +78,8 @@ resource "helm_release" "prometheus" {
   name       = "prometheus"
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "kube-prometheus-stack"
-  namespace  = var.istio_namespace
-  version    = "55.7.0"
+  namespace  = var.observability_namespace
+  version    = "82.10.1"
   wait       = true
   timeout    = 600
 
@@ -132,51 +135,94 @@ resource "helm_release" "jaeger" {
   name       = "jaeger"
   repository = "https://jaegertracing.github.io/helm-charts"
   chart      = "jaeger"
-  namespace  = var.istio_namespace
-  version    = "0.71.1"
+  namespace  = var.observability_namespace
+  version    = "4.5.0"
   wait       = true
   timeout    = 600
 
+  # Jaeger v4.x usa arquitectura All-in-One con OpenTelemetry Collector.
+  # El almacenamiento embebido (Elasticsearch/Cassandra) fue eliminado.
+  # Por defecto usa memoria (efímero). Para producción configure
+  # almacenamiento externo via userconfig.extensions.jaeger_storage.
   values = [
     yamlencode({
-      provisionDataStore = {
-        cassandra = false
-        elasticsearch = true
+      jaeger = {
+        resources = {
+          requests = {
+            cpu    = "100m"
+            memory = "128Mi"
+          }
+          limits = {
+            cpu    = "500m"
+            memory = "512Mi"
+          }
+        }
       }
-      elasticsearch = {
+    })
+  ]
+
+  depends_on = [
+    helm_release.istio_discovery
+  ]
+}
+
+resource "helm_release" "splunk_otel_collector" {
+  count      = var.splunk_enabled ? 1 : 0
+  name       = "splunk-otel-collector"
+  repository = "https://signalfx.github.io/splunk-otel-collector-chart"
+  chart      = "splunk-otel-collector"
+  namespace  = var.observability_namespace
+  version    = "0.146.0"
+  wait       = true
+  timeout    = 300
+
+  values = [
+    yamlencode({
+      clusterName = "istio-cluster"
+
+      splunkObservability = {
+        accessToken = var.splunk_access_token
+        realm       = var.splunk_realm
+      }
+
+      splunkPlatform = var.splunk_platform_endpoint != "" ? {
+        endpoint = var.splunk_platform_endpoint
+        token    = var.splunk_platform_token
+        index    = "main"
+      } : null
+
+      agent = {
         enabled = true
-        replicas = 1
-        config = {
-          "xpack.security.enabled" = false
-        }
-      }
-      collector = {
-        replicaCount = 1
         resources = {
           requests = {
             cpu    = "100m"
             memory = "128Mi"
           }
           limits = {
-            cpu    = "500m"
-            memory = "512Mi"
+            cpu    = "200m"
+            memory = "256Mi"
           }
         }
-        service = {
-          type = "ClusterIP"
-        }
       }
-      query = {
-        replicaCount = 1
+
+      clusterReceiver = {
+        enabled = true
         resources = {
           requests = {
-            cpu    = "100m"
+            cpu    = "50m"
             memory = "128Mi"
           }
           limits = {
-            cpu    = "500m"
-            memory = "512Mi"
+            cpu    = "100m"
+            memory = "256Mi"
           }
+        }
+      }
+
+      logsCollection = {
+        enabled    = true
+        containers = {
+          enabled = true
         }
       }
     })

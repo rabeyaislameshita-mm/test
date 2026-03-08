@@ -69,10 +69,13 @@ resource "helm_release" "istio_ingressgateway" {
   version         = var.istio_version
   create_namespace = true
   wait            = true
-  timeout         = 600
+  timeout         = 120
 
   values = [
     yamlencode({
+      labels = {
+        "sidecar.istio.io/inject" = "true"
+      }
       replicaCount = 2
       service = {
         type = "LoadBalancer"
@@ -109,10 +112,13 @@ resource "helm_release" "istio_egressgateway" {
   version         = var.istio_version
   create_namespace = true
   wait            = true
-  timeout         = 600
+  timeout         = 120
 
   values = [
     yamlencode({
+      labels = {
+        "sidecar.istio.io/inject" = "true"
+      }
       replicaCount = 1
       service = {
         type = "ClusterIP"
