@@ -19,16 +19,21 @@ resource "helm_release" "kiali" {
           url = "http://prometheus-kube-prometheus-prometheus.observability.svc.cluster.local:9090"
         }
         tracing = {
-          enabled        = var.tracing_jaeger_enabled
-          provider       = "jaeger"
-          in_cluster_url = "http://jaeger.observability.svc.cluster.local:16686"
-          url            = "http://jaeger.observability.svc.cluster.local:16686"
-          use_grpc       = false
+          enabled      = var.tracing_jaeger_enabled
+          provider     = "jaeger"
+          internal_url = "http://jaeger.observability.svc.cluster.local:16686"
+          external_url = "http://jaeger.local"
+          use_grpc     = false
         }
         grafana = {
-          enabled  = var.grafana_enabled
-          url      = "http://prometheus-grafana.observability.svc.cluster.local:80"
-          in_cluster_url = "http://prometheus-grafana.observability.svc.cluster.local:80"
+          enabled      = var.grafana_enabled
+          internal_url = "http://prometheus-grafana.observability.svc.cluster.local:80"
+          external_url = "http://grafana.local"
+          auth = {
+            username = "admin"
+            password = "admin123"
+            type     = "basic"
+          }
         }
         custom_dashboards = {
           enabled = true

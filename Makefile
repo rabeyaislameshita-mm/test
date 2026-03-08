@@ -1,4 +1,4 @@
-.PHONY: help init plan apply destroy verify test clean all unlock
+.PHONY: help init plan apply destroy verify test clean all unlock hosts-setup ingress-forward
 
 # Variables
 TERRAFORM_DIR := terraform
@@ -54,21 +54,33 @@ unlock: ## Eliminar el state lock de Terraform si quedó bloqueado
 		echo "No hay lock activo."; \
 	fi
 
-kiali: ## Acceso a Kiali
-	@echo "Abriendo Kiali en http://localhost:20001"
-	@kubectl port-forward -n observability svc/kiali 20001:20001
+kiali: ## Abrir Kiali en el browser (requiere: make ingress-forward)
+	@echo "Abriendo Kiali en http://kiali.local"
+	@start http://kiali.local 2>/dev/null || xdg-open http://kiali.local 2>/dev/null || echo "Visita: http://kiali.local"
 
-prometheus: ## Acceso a Prometheus
-	@echo "Abriendo Prometheus en http://localhost:9090"
-	@kubectl port-forward -n observability svc/prometheus-kube-prometheus-prometheus 9090:9090
+prometheus: ## Abrir Prometheus en el browser (requiere: make ingress-forward)
+	@echo "Abriendo Prometheus en http://prometheus.local"
+	@start http://prometheus.local 2>/dev/null || xdg-open http://prometheus.local 2>/dev/null || echo "Visita: http://prometheus.local"
 
-grafana: ## Acceso a Grafana
-	@echo "Abriendo Grafana en http://localhost:3000"
-	@kubectl port-forward -n observability svc/prometheus-grafana 3000:3000
+grafana: ## Abrir Grafana en el browser (requiere: make ingress-forward)
+	@echo "Abriendo Grafana en http://grafana.local"
+	@start http://grafana.local 2>/dev/null || xdg-open http://grafana.local 2>/dev/null || echo "Visita: http://grafana.local"
 
-jaeger: ## Acceso a Jaeger
-	@echo "Abriendo Jaeger en http://localhost:16686"
-	@kubectl port-forward -n observability svc/jaeger 16686:16686
+jaeger: ## Abrir Jaeger en el browser (requiere: make ingress-forward)
+	@echo "Abriendo Jaeger en http://jaeger.local"
+	@start http://jaeger.local 2>/dev/null || xdg-open http://jaeger.local 2>/dev/null || echo "Visita: http://jaeger.local"
+
+ingress-forward: ## Exponer Istio IngressGateway en localhost:80 (un solo comando para todos los servicios)
+	@echo "Exponiendo IngressGateway en http://localhost:80"
+	@echo "Accede a: http://kiali.local | http://grafana.local | http://prometheus.local | http://jaeger.local"
+	@echo "(requiere que el archivo hosts tenga: 127.0.0.1 kiali.local grafana.local prometheus.local jaeger.local)"
+	@kubectl port-forward -n istio-system svc/istio-ingressgateway 80:80
+
+hosts-setup: ## Configurar archivo hosts para acceder por nombre (requiere admin)
+	@echo "Actualizando archivo hosts..."
+	@INGRESS_IP="127.0.0.1"; \
+	echo "$$INGRESS_IP kiali.local grafana.local prometheus.local jaeger.local" >> /etc/hosts; \
+	echo "Agregado: $$INGRESS_IP kiali.local grafana.local prometheus.local jaeger.local"
 
 status: ## Ver estado de Istio
 	@echo "Estado de componentes de Istio:"
